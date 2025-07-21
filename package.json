@@ -1,0 +1,19 @@
+{
+  "name": "pdf-manual-chatbot",
+  "version": "1.0.0",
+  "description": "PDFマニュアルを読み込んで質問に回答するチャットボット",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "cd server && nodemon index.js",
+    "start": "cd server && node index.js",
+    "build": "echo 'No build needed for static HTML'",
+    "install-server": "cd server && npm install",
+    "vercel-build": "cd server && npm install"
+  },
+  "keywords": ["pdf", "chatbot", "manual", "gemini", "react"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

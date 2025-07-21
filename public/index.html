@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDFマニュアル チャットボット</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            margin: 0;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        .main {
+            flex: 1;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .upload-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex: 1;
+            min-height: 400px;
+        }
+
+        .upload-area {
+            border: 2px dashed #bdc3c7;
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background-color: white;
+            min-width: 400px;
+            max-width: 600px;
+        }
+
+        .upload-area:hover {
+            border-color: #3498db;
+            background-color: #f8fbff;
+        }
+
+        .upload-area.drag-over {
+            border-color: #2ecc71;
+            background-color: #f0fff4;
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .chat-section {
+            display: none;
+            flex-direction: column;
+            height: calc(100vh - 120px);
+        }
+
+        .document-info {
+            background-color: #ecf0f1;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            background-color: white;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 1rem 1.25rem;
+            border-radius: 20px;
+            line-height: 1.5;
+        }
+
+        .message.user {
+            background-color: #3498db;
+            color: white;
+            align-self: flex-end;
+            border-radius: 20px 20px 4px 20px;
+        }
+
+        .message.bot {
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            align-self: flex-start;
+            border-radius: 20px 20px 20px 4px;
+        }
+
+        .input-area {
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-end;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 12px;
+        }
+
+        .message-input {
+            flex: 1;
+            border: 1px solid #bdc3c7;
+            border-radius: 24px;
+            padding: 0.75rem 1rem;
+            font-family: inherit;
+            font-size: 1rem;
+            resize: none;
+            outline: none;
+        }
+
+        .message-input:focus {
+            border-color: #3498db;
+        }
+
+        .send-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 24px;
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            background-color: #2980b9;
+        }
+
+        .send-btn:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            color: #7f8c8d;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .page-links {
+            margin-top: 0.5rem;
+        }
+
+        .page-link {
+            background-color: #3498db;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            text-decoration: none;
+            margin-right: 0.5rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .page-link:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>PDFマニュアル チャットボット</h1>
+            <div class="header-controls">
+                <button class="btn btn-danger" onclick="resetDocument()">リセット</button>
+            </div>
+        </header>
+
+        <main class="main">
+            <!-- アップロードセクション -->
+            <div class="upload-section" id="uploadSection">
+                <div class="upload-area" id="uploadArea">
+                    <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+                    <div class="upload-icon">📄</div>
+                    <h3>PDFマニュアルをアップロード</h3>
+                    <p>PDFファイルをここにドラッグ&ドロップするか<br>クリックしてファイルを選択してください</p>
+                    <div style="margin-top: 1.5rem; background-color: #ecf0f1; padding: 1rem; border-radius: 8px;">
+                        <p><strong>• サポート形式:</strong> PDF (.pdf)</p>
+                        <p><strong>• 推奨サイズ:</strong> 50MB以下</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- チャットセクション -->
+            <div class="chat-section" id="chatSection">
+                <div class="document-info" id="documentInfo">
+                    📄 ファイル名 (文字数)
+                </div>
+                
+                <div class="messages" id="messages">
+                    <!-- メッセージがここに表示される -->
+                </div>
+
+                <div class="input-area">
+                    <textarea 
+                        id="messageInput" 
+                        class="message-input" 
+                        placeholder="マニュアルについて質問してください..."
+                        rows="1"
+                    ></textarea>
+                    <button class="send-btn" id="sendBtn" onclick="sendMessage()">送信</button>
+                </div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <span>AIが回答を生成中...</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const API_BASE = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3004' 
+            : window.location.origin;
+        let currentPDFContent = '';
+        
+        // DOM要素
+        const uploadSection = document.getElementById('uploadSection');
+        const chatSection = document.getElementById('chatSection');
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const messages = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const loading = document.getElementById('loading');
+        const documentInfo = document.getElementById('documentInfo');
+
+        // ファイルアップロード設定
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+
+        // メッセージ送信
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            const files = Array.from(e.dataTransfer.files);
+            const pdfFile = files.find(file => file.type === 'application/pdf');
+            if (pdfFile) {
+                uploadFile(pdfFile);
+            } else {
+                alert('PDFファイルを選択してください。');
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file && file.type === 'application/pdf') {
+                uploadFile(file);
+            } else {
+                alert('PDFファイルを選択してください。');
+            }
+        }
+
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('pdf', file);
+
+            try {
+                showLoading('PDFを処理中...');
+                const response = await fetch(`${API_BASE}/upload-pdf`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    documentInfo.textContent = `📄 ${result.fileName} (${result.pages}ページ、${result.textLength.toLocaleString()}文字)`;
+                    
+                    uploadSection.classList.add('hidden');
+                    chatSection.style.display = 'flex';
+                    
+                    addMessage('bot', `${result.fileName} が正常にアップロードされました！\n（${result.pages}ページ、${result.textLength}文字）\n\nマニュアルの内容について質問してください。`);
+                } else {
+                    alert('ファイルのアップロードに失敗しました: ' + result.error);
+                }
+            } catch (error) {
+                console.error('アップロードエラー:', error);
+                alert('ファイルのアップロードに失敗しました。');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message || sendBtn.disabled) return;
+
+            addMessage('user', message);
+            messageInput.value = '';
+            
+            try {
+                showLoading('AIが回答を生成中...');
+                sendBtn.disabled = true;
+                
+                const response = await fetch(`${API_BASE}/ask`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ question: message })
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    addMessage('bot', result.answer);
+                } else {
+                    addMessage('bot', 'エラーが発生しました: ' + result.error);
+                }
+            } catch (error) {
+                console.error('質問送信エラー:', error);
+                addMessage('bot', 'エラーが発生しました。もう一度お試しください。');
+            } finally {
+                hideLoading();
+                sendBtn.disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        function addMessage(type, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            // ページ番号を検出してリンクに変換（複数のパターンに対応）
+            const pagePattern1 = /(\d{1,3})\s*ページ/g;
+            const pagePattern2 = /p\.(\d{1,3})/g;
+            
+            const matches1 = content.match(pagePattern1) || [];
+            const matches2 = content.match(pagePattern2) || [];
+            const allMatches = [...matches1, ...matches2];
+            
+            if (allMatches.length > 0 && type === 'bot') {
+                let processedContent = content;
+                // 両方のパターンをリンクに変換
+                processedContent = processedContent.replace(pagePattern1, '<span class="page-link" onclick="goToPage($1)">$1ページ</span>');
+                processedContent = processedContent.replace(pagePattern2, '<span class="page-link" onclick="goToPage($1)">p.$1</span>');
+                
+                messageDiv.innerHTML = processedContent;
+                
+                // ページリンクセクションを追加
+                const pageLinks = document.createElement('div');
+                pageLinks.className = 'page-links';
+                
+                // 全ての数字を抽出
+                const pageNumbers = [];
+                matches1.forEach(m => {
+                    const match = m.match(/(\d{1,3})/);
+                    if (match) pageNumbers.push(match[1]);
+                });
+                matches2.forEach(m => {
+                    const match = m.match(/p\.(\d{1,3})/);
+                    if (match) pageNumbers.push(match[1]);
+                });
+                
+                const uniquePages = [...new Set(pageNumbers)];
+                
+                uniquePages.forEach(page => {
+                    const link = document.createElement('span');
+                    link.className = 'page-link';
+                    link.textContent = `p.${page}`;
+                    link.onclick = () => goToPage(page);
+                    pageLinks.appendChild(link);
+                });
+                
+                if (uniquePages.length > 0) {
+                    messageDiv.appendChild(pageLinks);
+                }
+            } else {
+                messageDiv.textContent = content;
+            }
+            
+            messages.appendChild(messageDiv);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function goToPage(pageNumber) {
+            console.log(`ページ ${pageNumber} を開こうとしています...`);
+            
+            // まずステータスを確認
+            fetch(`${API_BASE}/status`)
+                .then(response => response.json())
+                .then(status => {
+                    console.log('サーバーステータス:', status);
+                    if (!status.hasPdfBuffer) {
+                        throw new Error('PDFバッファがサーバーに存在しません');
+                    }
+                    return fetch(`${API_BASE}/get-pdf`);
+                })
+                .then(response => {
+                    console.log('PDF取得レスポンス:', response.status, response.statusText);
+                    if (response.ok) {
+                        return response.blob();
+                    }
+                    throw new Error(`PDF not available: ${response.status} ${response.statusText}`);
+                })
+                .then(blob => {
+                    console.log('PDFブロブ取得成功:', blob.size, 'bytes');
+                    // PDFをBlobURLとして開く
+                    const pdfUrl = URL.createObjectURL(blob);
+                    const newWindow = window.open(`${pdfUrl}#page=${pageNumber}`, '_blank');
+                    
+                    if (!newWindow) {
+                        console.log('新しいタブがブロックされました。モーダルで表示します。');
+                        // ポップアップブロックされた場合は必ずモーダルで表示
+                        showPDFModal(blob, pageNumber);
+                    } else {
+                        // 通知表示
+                        showNotification(`${pageNumber}ページを新しいタブで開きました`);
+                    }
+                })
+                .catch(error => {
+                    console.error('PDF表示エラー詳細:', error);
+                    showNotification(`PDFの読み込みでエラーが発生しました: ${error.message}`);
+                });
+        }
+
+        function showPDFModal(blob, pageNumber) {
+            // PDFビューアーモーダルを作成
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0,0,0,0.8);
+                z-index: 10000;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            `;
+
+            const iframe = document.createElement('iframe');
+            iframe.src = URL.createObjectURL(blob) + `#page=${pageNumber}`;
+            iframe.style.cssText = `
+                width: 90%;
+                height: 90%;
+                border: none;
+                border-radius: 8px;
+                background: white;
+            `;
+
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '×';
+            closeBtn.style.cssText = `
+                position: absolute;
+                top: 20px;
+                right: 20px;
+                background: #e74c3c;
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+                cursor: pointer;
+                z-index: 10001;
+            `;
+            
+            closeBtn.onclick = () => {
+                document.body.removeChild(modal);
+                URL.revokeObjectURL(iframe.src);
+            };
+
+            modal.appendChild(iframe);
+            modal.appendChild(closeBtn);
+            document.body.appendChild(modal);
+
+            showNotification(`${pageNumber}ページを表示中`);
+        }
+
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background-color: #2ecc71;
+                color: white;
+                padding: 1rem;
+                border-radius: 4px;
+                z-index: 1000;
+                animation: fadeInOut 3s;
+            `;
+            
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
+        }
+
+        function showLoading(text) {
+            loading.style.display = 'flex';
+            loading.querySelector('span').textContent = text;
+        }
+
+        function hideLoading() {
+            loading.style.display = 'none';
+        }
+
+        async function resetDocument() {
+            if (confirm('ドキュメントをリセットしますか？')) {
+                try {
+                    await fetch(`${API_BASE}/reset`, { method: 'POST' });
+                    
+                    uploadSection.classList.remove('hidden');
+                    chatSection.style.display = 'none';
+                    messages.innerHTML = '';
+                    messageInput.value = '';
+                } catch (error) {
+                    console.error('リセットエラー:', error);
+                }
+            }
+        }
+
+        // CSS アニメーションを追加
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeInOut {
+                0% { opacity: 0; transform: translateY(-20px); }
+                20% { opacity: 1; transform: translateY(0); }
+                80% { opacity: 1; transform: translateY(0); }
+                100% { opacity: 0; transform: translateY(-20px); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

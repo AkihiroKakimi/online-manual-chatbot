@@ -355,19 +355,39 @@
         }
 
         async function uploadFile(file) {
-            const formData = new FormData();
-            formData.append('pdf', file);
-
             try {
-                showLoading('PDFを処理中...');
-                const response = await fetch(`${API_BASE}/upload-pdf`, {
+                showLoading('PDFをアップロード中...');
+                
+                // Step 1: Vercel Blobに直接アップロード
+                const blobResponse = await fetch(`${API_BASE}/api/upload?filename=${encodeURIComponent(file.name)}`, {
                     method: 'POST',
-                    body: formData
+                    body: file  // FormDataではなく直接ファイル
+                });
+                
+                if (!blobResponse.ok) {
+                    throw new Error('Blobアップロードに失敗しました');
+                }
+                
+                const blobResult = await blobResponse.json();
+                console.log('Blob upload success:', blobResult);
+                
+                showLoading('PDFを解析中...');
+                
+                // Step 2: サーバーにBlob URLを送信してPDF解析
+                const parseResponse = await fetch(`${API_BASE}/upload-pdf-blob`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        blobUrl: blobResult.url,
+                        fileName: file.name
+                    })
                 });
 
-                const result = await response.json();
+                const result = await parseResponse.json();
                 
-                if (response.ok) {
+                if (parseResponse.ok) {
                     documentInfo.textContent = `📄 ${result.fileName} (${result.pages}ページ、${result.textLength.toLocaleString()}文字)`;
                     
                     uploadSection.classList.add('hidden');
@@ -375,11 +395,11 @@
                     
                     addMessage('bot', `${result.fileName} が正常にアップロードされました！\n（${result.pages}ページ、${result.textLength}文字）\n\nマニュアルの内容について質問してください。`);
                 } else {
-                    alert('ファイルのアップロードに失敗しました: ' + result.error);
+                    alert('PDFの解析に失敗しました: ' + result.error);
                 }
             } catch (error) {
                 console.error('アップロードエラー:', error);
-                alert('ファイルのアップロードに失敗しました。');
+                alert('ファイルのアップロードに失敗しました: ' + error.message);
             } finally {
                 hideLoading();
             }

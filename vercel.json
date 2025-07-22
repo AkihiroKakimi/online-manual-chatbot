@@ -15,7 +15,7 @@
   ],
   "routes": [
     {
-      "src": "/(upload-pdf|ask|search|status|get-pdf|reset)",
+      "src": "/(upload-pdf|upload-pdf-blob|ask|search|status|get-pdf|reset)",
       "dest": "/server/index.js"
     },
     {

@@ -3,6 +3,7 @@ const cors = require('cors');
 const multer = require('multer');
 const pdf = require('pdf-parse');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { put } = require('@vercel/blob');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
@@ -34,6 +35,43 @@ let pdfBuffer = null;
 // ルートパスでHTMLファイルを配信
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
+// Blob URL 用のアップロードエンドポイント
+app.post('/upload-pdf-blob', async (req, res) => {
+  try {
+    const { blobUrl, fileName } = req.body;
+    
+    if (!blobUrl || !fileName) {
+      return res.status(400).json({ error: 'Blob URL とファイル名が必要です' });
+    }
+
+    // Blob URLからPDFデータを取得
+    const response = await fetch(blobUrl);
+    if (!response.ok) {
+      throw new Error('Blob URLからのダウンロードに失敗');
+    }
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const dataBuffer = Buffer.from(arrayBuffer);
+    
+    // PDF解析
+    const data = await pdf(dataBuffer);
+    
+    pdfContent = data.text;
+    pdfFileName = fileName;
+    pdfBuffer = dataBuffer;
+    
+    res.json({ 
+      message: 'PDFが正常にアップロードされました',
+      fileName: pdfFileName,
+      pages: data.numpages,
+      textLength: pdfContent.length
+    });
+  } catch (error) {
+    console.error('PDF Blob処理エラー:', error);
+    res.status(500).json({ error: 'PDFの処理中にエラーが発生しました: ' + error.message });
+  }
 });
 
 app.post('/upload-pdf', upload.single('pdf'), async (req, res) => {

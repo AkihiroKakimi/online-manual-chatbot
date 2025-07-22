@@ -16,7 +16,7 @@ app.use(express.json());
 // 静的ファイルの配信
 app.use(express.static(path.join(__dirname, '../public')));
 
-const upload = multer({ dest: '../uploads/' });
+const upload = multer({ storage: multer.memoryStorage() });
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -36,21 +36,12 @@ app.post('/upload-pdf', upload.single('pdf'), async (req, res) => {
       return res.status(400).json({ error: 'PDFファイルがアップロードされていません' });
     }
 
-    const dataBuffer = fs.readFileSync(req.file.path);
+    const dataBuffer = req.file.buffer; // メモリから直接取得
     const data = await pdf(dataBuffer);
     
     pdfContent = data.text;
     pdfFileName = req.file.originalname;
     pdfBuffer = dataBuffer; // PDFバイナリデータを保存
-    
-    console.log('PDFアップロード完了:', {
-      fileName: pdfFileName,
-      bufferSize: pdfBuffer.length,
-      textLength: pdfContent.length,
-      pages: data.numpages
-    });
-    
-    fs.unlinkSync(req.file.path);
     
     res.json({ 
       message: 'PDFが正常にアップロードされました',

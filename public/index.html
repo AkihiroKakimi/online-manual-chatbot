@@ -358,17 +358,14 @@
             try {
                 showLoading('PDFをアップロード中...');
                 
-                // Step 1: Vercel Blobに直接アップロード
-                const blobResponse = await fetch(`${API_BASE}/api/upload?filename=${encodeURIComponent(file.name)}`, {
-                    method: 'POST',
-                    body: file  // FormDataではなく直接ファイル
+                // Step 1: Vercel Blob Client Uploadでアップロード
+                const { upload } = await import('https://unpkg.com/@vercel/blob/client');
+                
+                const blobResult = await upload(file.name, file, {
+                    access: 'public',
+                    handleUploadUrl: `${API_BASE}/api/upload`
                 });
                 
-                if (!blobResponse.ok) {
-                    throw new Error('Blobアップロードに失敗しました');
-                }
-                
-                const blobResult = await blobResponse.json();
                 console.log('Blob upload success:', blobResult);
                 
                 showLoading('PDFを解析中...');

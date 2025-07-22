@@ -310,3 +310,6 @@ app.listen(PORT, () => {
   console.log(`Gemini API Key設定: ${process.env.GEMINI_API_KEY ? '設定済み' : '未設定'}`);
   console.log(`ブラウザで http://localhost:${PORT} にアクセスしてください`);
 });
+
+// Vercel用のエクスポート
+module.exports = app;
